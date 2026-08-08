@@ -1,11 +1,58 @@
 import nodemailer from 'nodemailer';
 import dns from 'dns';
+import https from 'https';
 import Settings from '../models/Settings.js';
 
 // Force IPv4 resolution first to prevent ENETUNREACH IPv6 errors on cloud platforms like Render
 try {
   dns.setDefaultResultOrder('ipv4first');
 } catch (e) {}
+
+// HTTPS API Fallback for cloud providers (like Render) that block outbound SMTP ports (25, 465, 587)
+function sendViaResendApi({ to, subject, html, fromName }) {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return Promise.reject(new Error('RESEND_API_KEY not set'));
+
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify({
+      from: `${fromName || 'OWMS Notifications'} <onboarding@resend.dev>`,
+      to: Array.isArray(to) ? to : [to],
+      subject: subject,
+      html: html,
+    });
+
+    const req = https.request({
+      hostname: 'api.resend.com',
+      path: '/emails',
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(data),
+      },
+      timeout: 10000,
+    }, (res) => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          resolve(JSON.parse(body));
+        } else {
+          reject(new Error(`Resend API ${res.statusCode}: ${body}`));
+        }
+      });
+    });
+
+    req.on('error', err => reject(err));
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error('Resend HTTPS Timeout'));
+    });
+
+    req.write(data);
+    req.end();
+  });
+}
 
 /**
  * Email delivery: ONE SMTP connection, THREE sender identities.
@@ -153,24 +200,58 @@ async function mailerFor(type) {
  * Verifies the active SMTP connection (DB or env) using a chosen identity.
  */
 export async function sendTestEmail({ to, identity = 'support' }) {
-  const { transporter, from, replyTo } = await mailerFor(identity);
-  await transporter.sendMail({
-    from,
-    replyTo,
-    to,
-    subject: 'OWMS — Test Email',
-    html: `
-      <div style="font-family:sans-serif;max-width:480px;margin:auto">
-        <h2 style="color:#2563EB">OWMS Test Email</h2>
-        <p>Your SMTP configuration is working correctly.</p>
-        <p><strong>Sender identity:</strong> ${identity}</p>
-        <p><strong>Sent to:</strong> ${to}</p>
-        <p><strong>Time:</strong> ${new Date().toISOString()}</p>
-        <hr/>
-        <p style="font-size:12px;color:#64748B">Movi Cloud Labs — OWMS Notification System</p>
-      </div>
-    `,
-  });
+  if (process.env.RESEND_API_KEY) {
+    try {
+      await sendViaResendApi({
+        to,
+        subject: 'OWMS — Test Email (HTTPS)',
+        html: `
+          <div style="font-family:sans-serif;max-width:480px;margin:auto">
+            <h2 style="color:#2563EB">OWMS Test Email (HTTPS)</h2>
+            <p>Your HTTPS API email configuration is working correctly.</p>
+            <p><strong>Sent to:</strong> ${to}</p>
+            <p><strong>Time:</strong> ${new Date().toISOString()}</p>
+            <hr/>
+            <p style="font-size:12px;color:#64748B">Movi Cloud Labs — OWMS Notification System</p>
+          </div>
+        `,
+      });
+      return;
+    } catch (e) {
+      console.warn('Resend API failed, falling back to SMTP:', e.message);
+    }
+  }
+
+  try {
+    const { transporter, from, replyTo } = await mailerFor(identity);
+    await transporter.sendMail({
+      from,
+      replyTo,
+      to,
+      subject: 'OWMS — Test Email',
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:auto">
+          <h2 style="color:#2563EB">OWMS Test Email</h2>
+          <p>Your SMTP configuration is working correctly.</p>
+          <p><strong>Sender identity:</strong> ${identity}</p>
+          <p><strong>Sent to:</strong> ${to}</p>
+          <p><strong>Time:</strong> ${new Date().toISOString()}</p>
+          <hr/>
+          <p style="font-size:12px;color:#64748B">Movi Cloud Labs — OWMS Notification System</p>
+        </div>
+      `,
+    });
+  } catch (err) {
+    if (process.env.RESEND_API_KEY) {
+      await sendViaResendApi({
+        to,
+        subject: 'OWMS — Test Email (Fallback)',
+        html: `<p>Test email delivered via HTTPS API fallback.</p>`,
+      });
+      return;
+    }
+    throw err;
+  }
 }
 
 export const sendProjectAssignmentEmail = async ({

@@ -6,9 +6,8 @@ import { sendTestEmail, invalidateMailCache } from '../../utils/sendEmail.js';
 // ─── GET /api/admin/settings ──────────────────────────────────────────────────
 export const getSettings = async (req, res, next) => {
   try {
-    let settings = await Settings.findOne({ key: 'global' });
+    let settings = await Settings.findOne({ key: 'global' }).select('+notifications.smtpPass');
     if (!settings) settings = await Settings.create({ key: 'global' });
-    // smtpPass has select:false — never returned to frontend
     sendSuccess(res, settings, 'Settings loaded');
   } catch (err) {
     next(err);
@@ -57,7 +56,7 @@ export const updateSettings = async (req, res, next) => {
       { key: 'global' },
       { $set: updateObj },
       { new: true, upsert: true, runValidators: true }
-    );
+    ).select('+notifications.smtpPass');
 
     // Drop the cached mail config so new SMTP / sender identities take effect now
     if (incoming.notifications) invalidateMailCache();

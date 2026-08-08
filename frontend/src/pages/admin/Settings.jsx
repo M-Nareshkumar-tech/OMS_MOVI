@@ -398,7 +398,7 @@ function NotificationsTab({ s, upd, err, canEdit, userEmail }) {
           <Input value={s.smtpUser||''} onChange={e=>upd('smtpUser',e.target.value)} autoComplete="new-password" disabled={!canEdit} placeholder="SMTP username" className="flex-1"/>
           <div className="relative flex-1">
             <Input type={showPass?'text':'password'} value={s.smtpPass||''} onChange={e=>upd('smtpPass',e.target.value)} autoComplete="new-password"
-              disabled={!canEdit} placeholder="Leave blank to keep" className="w-full pr-8"/>
+              disabled={!canEdit} placeholder="Enter SMTP password" className="w-full pr-8"/>
             <button type="button" onClick={()=>setShowPass(p=>!p)}
               className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#9CA3AF] hover:text-[#6B7280]">
               {showPass?<EyeOff size={13}/>:<Eye size={13}/>}
