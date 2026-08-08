@@ -75,10 +75,11 @@ function activeSmtp(n) {
 
 function buildTransporter(n) {
   if (activeSmtp(n).source === 'db') {
+    const isSSL = n.smtpEncryption === 'SSL' || Number(n.smtpPort) === 465;
     return nodemailer.createTransport({
       host:              n.smtpHost,
-      port:              n.smtpPort || 587,
-      secure:            n.smtpEncryption === 'SSL',
+      port:              n.smtpPort || (isSSL ? 465 : 587),
+      secure:            isSSL,
       auth:              { user: n.smtpUser, pass: n.smtpPass },
       family:            4,
       connectionTimeout: 10000,
@@ -86,10 +87,11 @@ function buildTransporter(n) {
       socketTimeout:     10000,
     });
   }
+  const isEnvSSL = Number(process.env.EMAIL_PORT) === 465;
   return nodemailer.createTransport({
     host:              process.env.EMAIL_HOST,
     port:              Number(process.env.EMAIL_PORT) || 587,
-    secure:            false,
+    secure:            isEnvSSL,
     auth:              { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
     family:            4,
     connectionTimeout: 10000,
@@ -288,12 +290,13 @@ const getWelcomeTransporter = async () => {
     return { transporter: _transporter, settings: n };
   }
 
+  const isSSL = n?.smtpEncryption === 'SSL' || Number(n?.smtpPort || process.env.EMAIL_PORT) === 465;
   // Create new pooled transporter (one connection, rate-limited)
   _transporter = nodemailer.createTransport({
     host,
-    port:   n?.smtpPort || Number(process.env.EMAIL_PORT) || 587,
-    secure: n?.smtpEncryption === 'SSL' || false,
-    auth:   { user, pass },
+    port:             n?.smtpPort || Number(process.env.EMAIL_PORT) || (isSSL ? 465 : 587),
+    secure:           isSSL,
+    auth:             { user, pass },
     family:           4,         // IPv4 force for cloud platforms like Render
     pool:             true,      // reuse the same SMTP connection
     maxConnections:   1,         // one connection, no parallel sends

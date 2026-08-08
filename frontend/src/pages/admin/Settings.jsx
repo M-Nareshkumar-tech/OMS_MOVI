@@ -408,7 +408,11 @@ function NotificationsTab({ s, upd, err, canEdit, userEmail }) {
       </Row>
       <Row label="Encryption">
         <Seg options={[{value:'none',label:'None'},{value:'TLS',label:'TLS'},{value:'SSL',label:'SSL'}]}
-          value={s.smtpEncryption||'TLS'} onChange={v=>upd('smtpEncryption',v)} disabled={!canEdit}/>
+          value={s.smtpEncryption||'TLS'} onChange={v => {
+            upd('smtpEncryption', v);
+            if (v === 'SSL' && (!s.smtpPort || s.smtpPort === 587)) upd('smtpPort', 465);
+            if (v === 'TLS' && (!s.smtpPort || s.smtpPort === 465)) upd('smtpPort', 587);
+          }} disabled={!canEdit}/>
       </Row>
       <Row label="Default From" helper="Used when a sender identity below is left blank">
         <div className="flex gap-2">
