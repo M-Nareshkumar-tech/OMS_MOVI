@@ -10,8 +10,9 @@ try {
 
 // HTTPS API Fallback for cloud providers (like Render) that block outbound SMTP ports (25, 465, 587)
 function sendViaResendApi({ to, subject, html, fromName }) {
-  const apiKey = process.env.RESEND_API_KEY;
+  let apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return Promise.reject(new Error('RESEND_API_KEY not set'));
+  apiKey = apiKey.trim().replace(/^["']|["']$/g, '');
 
   return new Promise((resolve, reject) => {
     const data = JSON.stringify({
@@ -52,6 +53,65 @@ function sendViaResendApi({ to, subject, html, fromName }) {
     req.write(data);
     req.end();
   });
+}
+
+function sendViaBrevoApi({ to, subject, html, fromName, fromEmail }) {
+  let apiKey = process.env.BREVO_API_KEY;
+  if (!apiKey) return Promise.reject(new Error('BREVO_API_KEY not set'));
+  apiKey = apiKey.trim().replace(/^["']|["']$/g, '');
+
+  return new Promise((resolve, reject) => {
+    const data = JSON.stringify({
+      sender: {
+        name: fromName || 'OWMS Notifications',
+        email: fromEmail || process.env.EMAIL_USER || 'mnareshkumar299@gmail.com',
+      },
+      to: (Array.isArray(to) ? to : [to]).map(e => ({ email: e })),
+      subject: subject,
+      htmlContent: html,
+    });
+
+    const req = https.request({
+      hostname: 'api.brevo.com',
+      path: '/v3/smtp/email',
+      method: 'POST',
+      headers: {
+        'api-key': apiKey,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(data),
+      },
+      timeout: 10000,
+    }, (res) => {
+      let body = '';
+      res.on('data', chunk => body += chunk);
+      res.on('end', () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          resolve(JSON.parse(body));
+        } else {
+          reject(new Error(`Brevo API ${res.statusCode}: ${body}`));
+        }
+      });
+    });
+
+    req.on('error', err => reject(err));
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error('Brevo HTTPS Timeout'));
+    });
+
+    req.write(data);
+    req.end();
+  });
+}
+
+async function sendViaHttpsApi({ to, subject, html, fromName, fromEmail }) {
+  if (process.env.BREVO_API_KEY) {
+    return sendViaBrevoApi({ to, subject, html, fromName, fromEmail });
+  }
+  if (process.env.RESEND_API_KEY) {
+    return sendViaResendApi({ to, subject, html, fromName });
+  }
+  throw new Error('No HTTPS API Key configured');
 }
 
 /**
@@ -200,9 +260,9 @@ async function mailerFor(type) {
  * Verifies the active SMTP connection (DB or env) using a chosen identity.
  */
 export async function sendTestEmail({ to, identity = 'support' }) {
-  if (process.env.RESEND_API_KEY) {
+  if (process.env.BREVO_API_KEY || process.env.RESEND_API_KEY) {
     try {
-      await sendViaResendApi({
+      await sendViaHttpsApi({
         to,
         subject: 'OWMS — Test Email (HTTPS)',
         html: `
@@ -218,7 +278,7 @@ export async function sendTestEmail({ to, identity = 'support' }) {
       });
       return;
     } catch (e) {
-      console.warn('Resend API failed, falling back to SMTP:', e.message);
+      console.warn('HTTPS API mailer failed, falling back to SMTP:', e.message);
     }
   }
 
@@ -481,16 +541,16 @@ export const sendWelcomeEmail = async ({
     </div>
   `;
 
-  if (process.env.RESEND_API_KEY) {
+  if (process.env.BREVO_API_KEY || process.env.RESEND_API_KEY) {
     try {
-      await sendViaResendApi({
+      await sendViaHttpsApi({
         to: toEmail,
         subject: 'Welcome to OWMS — Your Account is Ready',
         html: welcomeHtml,
       });
       return { sent: true };
     } catch (e) {
-      console.warn('Welcome email via Resend failed, trying SMTP:', e.message);
+      console.warn('Welcome email via HTTPS API failed, trying SMTP:', e.message);
     }
   }
 
