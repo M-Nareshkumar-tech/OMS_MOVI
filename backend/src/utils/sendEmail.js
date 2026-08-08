@@ -1,5 +1,11 @@
 import nodemailer from 'nodemailer';
+import dns from 'dns';
 import Settings from '../models/Settings.js';
+
+// Force IPv4 resolution first to prevent ENETUNREACH IPv6 errors on cloud platforms like Render
+try {
+  dns.setDefaultResultOrder('ipv4first');
+} catch (e) {}
 
 /**
  * Email delivery: ONE SMTP connection, THREE sender identities.
@@ -74,6 +80,7 @@ function buildTransporter(n) {
       port:   n.smtpPort || 587,
       secure: n.smtpEncryption === 'SSL',
       auth:   { user: n.smtpUser, pass: n.smtpPass },
+      family: 4,
     });
   }
   return nodemailer.createTransport({
@@ -81,6 +88,7 @@ function buildTransporter(n) {
     port:   Number(process.env.EMAIL_PORT) || 587,
     secure: false,
     auth:   { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+    family: 4,
   });
 }
 
@@ -280,6 +288,7 @@ const getWelcomeTransporter = async () => {
     port:   n?.smtpPort || Number(process.env.EMAIL_PORT) || 587,
     secure: n?.smtpEncryption === 'SSL' || false,
     auth:   { user, pass },
+    family:           4,         // IPv4 force for cloud platforms like Render
     pool:             true,      // reuse the same SMTP connection
     maxConnections:   1,         // one connection, no parallel sends
     maxMessages:      Infinity,
