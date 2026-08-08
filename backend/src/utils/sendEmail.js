@@ -74,30 +74,46 @@ function activeSmtp(n) {
 }
 
 function buildTransporter(n) {
-  if (activeSmtp(n).source === 'db') {
-    const isSSL = n.smtpEncryption === 'SSL' || Number(n.smtpPort) === 465;
-    return nodemailer.createTransport({
-      host:              n.smtpHost,
-      port:              n.smtpPort || (isSSL ? 465 : 587),
-      secure:            isSSL,
-      auth:              { user: n.smtpUser, pass: n.smtpPass },
-      family:            4,
-      connectionTimeout: 10000,
-      greetingTimeout:   5000,
-      socketTimeout:     10000,
-    });
+  const active = activeSmtp(n);
+  let host, port, user, pass, encryption;
+  if (active.source === 'db') {
+    host = n.smtpHost;
+    port = n.smtpPort;
+    user = n.smtpUser;
+    pass = n.smtpPass;
+    encryption = n.smtpEncryption;
+  } else {
+    host = process.env.EMAIL_HOST;
+    port = process.env.EMAIL_PORT;
+    user = process.env.EMAIL_USER;
+    pass = process.env.EMAIL_PASS;
+    encryption = process.env.EMAIL_ENCRYPTION;
   }
-  const isEnvSSL = Number(process.env.EMAIL_PORT) === 465;
-  return nodemailer.createTransport({
-    host:              process.env.EMAIL_HOST,
-    port:              Number(process.env.EMAIL_PORT) || 587,
-    secure:            isEnvSSL,
-    auth:              { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+
+  if (!host || !user || !pass) {
+    throw new Error('SMTP credentials incomplete. Please check host, username, and password.');
+  }
+
+  const isGmail = (host || '').toLowerCase().includes('gmail');
+  const isSSL = encryption === 'SSL' || Number(port) === 465;
+
+  const transportOpts = {
+    auth:              { user, pass },
     family:            4,
-    connectionTimeout: 10000,
-    greetingTimeout:   5000,
-    socketTimeout:     10000,
-  });
+    connectionTimeout: 15000,
+    greetingTimeout:   10000,
+    socketTimeout:     20000,
+  };
+
+  if (isGmail) {
+    transportOpts.service = 'gmail';
+  } else {
+    transportOpts.host   = host;
+    transportOpts.port   = Number(port) || (isSSL ? 465 : 587);
+    transportOpts.secure = isSSL;
+  }
+
+  return nodemailer.createTransport(transportOpts);
 }
 
 const ENV_FALLBACKS = {
@@ -290,12 +306,10 @@ const getWelcomeTransporter = async () => {
     return { transporter: _transporter, settings: n };
   }
 
+  const isGmail = (host || '').toLowerCase().includes('gmail');
   const isSSL = n?.smtpEncryption === 'SSL' || Number(n?.smtpPort || process.env.EMAIL_PORT) === 465;
-  // Create new pooled transporter (one connection, rate-limited)
-  _transporter = nodemailer.createTransport({
-    host,
-    port:             n?.smtpPort || Number(process.env.EMAIL_PORT) || (isSSL ? 465 : 587),
-    secure:           isSSL,
+
+  const transportOpts = {
     auth:             { user, pass },
     family:           4,         // IPv4 force for cloud platforms like Render
     pool:             true,      // reuse the same SMTP connection
@@ -303,7 +317,20 @@ const getWelcomeTransporter = async () => {
     maxMessages:      Infinity,
     rateDelta:        1000,      // 1 second between emails
     rateLimit:        1,         // max 1 email per rateDelta (Gmail safe)
-  });
+    connectionTimeout: 15000,
+    greetingTimeout:   10000,
+    socketTimeout:     20000,
+  };
+
+  if (isGmail) {
+    transportOpts.service = 'gmail';
+  } else {
+    transportOpts.host   = host;
+    transportOpts.port   = n?.smtpPort || Number(process.env.EMAIL_PORT) || (isSSL ? 465 : 587);
+    transportOpts.secure = isSSL;
+  }
+
+  _transporter = nodemailer.createTransport(transportOpts);
 
   _transporterConfig = currentKey;
 
