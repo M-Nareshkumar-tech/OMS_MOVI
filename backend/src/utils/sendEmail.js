@@ -76,19 +76,25 @@ function activeSmtp(n) {
 function buildTransporter(n) {
   if (activeSmtp(n).source === 'db') {
     return nodemailer.createTransport({
-      host:   n.smtpHost,
-      port:   n.smtpPort || 587,
-      secure: n.smtpEncryption === 'SSL',
-      auth:   { user: n.smtpUser, pass: n.smtpPass },
-      family: 4,
+      host:              n.smtpHost,
+      port:              n.smtpPort || 587,
+      secure:            n.smtpEncryption === 'SSL',
+      auth:              { user: n.smtpUser, pass: n.smtpPass },
+      family:            4,
+      connectionTimeout: 10000,
+      greetingTimeout:   5000,
+      socketTimeout:     10000,
     });
   }
   return nodemailer.createTransport({
-    host:   process.env.EMAIL_HOST,
-    port:   Number(process.env.EMAIL_PORT) || 587,
-    secure: false,
-    auth:   { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
-    family: 4,
+    host:              process.env.EMAIL_HOST,
+    port:              Number(process.env.EMAIL_PORT) || 587,
+    secure:            false,
+    auth:              { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
+    family:            4,
+    connectionTimeout: 10000,
+    greetingTimeout:   5000,
+    socketTimeout:     10000,
   });
 }
 
