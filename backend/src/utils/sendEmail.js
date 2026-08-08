@@ -255,112 +255,126 @@ export async function sendTestEmail({ to, identity = 'support' }) {
 }
 
 export const sendProjectAssignmentEmail = async ({
-  to, employeeName, projectName, projectCode, role, pmoName, hrName, loginUrl,
+  to, employeeName, projectName, projectCode, role, pmoName, hrName, loginUrl = 'https://owms-frontend.onrender.com',
 }) => {
-  const { transporter, from, replyTo } = await mailerFor('alerts');
-  await transporter.sendMail({
-    from,
-    replyTo,
-    to,
-    subject: `You've been assigned to project ${projectName}`,
-    html: `
-      <div style="font-family:sans-serif;max-width:520px;margin:auto;padding:32px;background:#fff;border:1px solid #E2E8F0;border-radius:12px">
-        <div style="background:#2563EB;border-radius:8px;padding:20px 24px;margin-bottom:28px">
-          <h1 style="color:#fff;margin:0;font-size:20px;font-weight:700;letter-spacing:-0.3px">OWMS</h1>
-          <p style="color:#93C5FD;margin:4px 0 0;font-size:13px">Office Workspace Management System</p>
-        </div>
+  const assignmentHtml = `
+    <div style="font-family:sans-serif;max-width:520px;margin:auto;padding:32px;background:#fff;border:1px solid #E2E8F0;border-radius:12px">
+      <div style="background:#2563EB;border-radius:8px;padding:20px 24px;margin-bottom:28px">
+        <h1 style="color:#fff;margin:0;font-size:20px;font-weight:700;letter-spacing:-0.3px">OWMS</h1>
+        <p style="color:#93C5FD;margin:4px 0 0;font-size:13px">Office Workspace Management System</p>
+      </div>
 
-        <h2 style="color:#0F172A;font-size:18px;font-weight:600;margin:0 0 8px">Project Assignment</h2>
-        <p style="color:#64748B;font-size:14px;margin:0 0 24px;line-height:1.6">
-          Hi ${employeeName}, you have been assigned to an isolated project team.
-        </p>
+      <h2 style="color:#0F172A;font-size:18px;font-weight:600;margin:0 0 8px">Project Assignment</h2>
+      <p style="color:#64748B;font-size:14px;margin:0 0 24px;line-height:1.6">
+        Hi ${employeeName}, you have been assigned to an isolated project team.
+      </p>
 
-        <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:20px;margin-bottom:24px">
-          <table style="width:100%;border-collapse:collapse">
-            <tr>
-              <td style="padding:8px 0;color:#64748B;font-size:13px;width:160px">Project</td>
-              <td style="padding:8px 0;font-size:13px;font-weight:600;color:#0F172A">${projectName}</td>
-            </tr>
-            <tr style="border-top:1px solid #E2E8F0">
-              <td style="padding:8px 0;color:#64748B;font-size:13px">Project Code</td>
-              <td style="padding:8px 0;font-size:13px;font-weight:600;color:#0F172A;font-family:monospace">${projectCode}</td>
-            </tr>
-            <tr style="border-top:1px solid #E2E8F0">
-              <td style="padding:8px 0;color:#64748B;font-size:13px">Your Role</td>
-              <td style="padding:8px 0;font-size:13px;font-weight:600;color:#0F172A">${role}</td>
-            </tr>
-            <tr style="border-top:1px solid #E2E8F0">
-              <td style="padding:8px 0;color:#64748B;font-size:13px">Reporting Manager</td>
-              <td style="padding:8px 0;font-size:13px;font-weight:600;color:#0F172A">${pmoName} (PMO Lead)</td>
-            </tr>
-            ${hrName ? `
-            <tr style="border-top:1px solid #E2E8F0">
-              <td style="padding:8px 0;color:#64748B;font-size:13px">Reporting HR</td>
-              <td style="padding:8px 0;font-size:13px;font-weight:600;color:#0F172A">${hrName}</td>
-            </tr>` : ''}
-          </table>
-        </div>
+      <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:20px;margin-bottom:24px">
+        <table style="width:100%;border-collapse:collapse">
+          <tr>
+            <td style="padding:8px 0;color:#64748B;font-size:13px">Project Name</td>
+            <td style="padding:8px 0;font-size:13px;font-weight:600;color:#0F172A">${projectName} (${projectCode || 'N/A'})</td>
+          </tr>
+          <tr style="border-top:1px solid #E2E8F0">
+            <td style="padding:8px 0;color:#64748B;font-size:13px">Assigned Role</td>
+            <td style="padding:8px 0;font-size:13px;font-weight:600;color:#0F172A">${role}</td>
+          </tr>
+          <tr style="border-top:1px solid #E2E8F0">
+            <td style="padding:8px 0;color:#64748B;font-size:13px">Reporting Manager</td>
+            <td style="padding:8px 0;font-size:13px;font-weight:600;color:#0F172A">${pmoName} (PMO Lead)</td>
+          </tr>
+          ${hrName ? `
+          <tr style="border-top:1px solid #E2E8F0">
+            <td style="padding:8px 0;color:#64748B;font-size:13px">Reporting HR</td>
+            <td style="padding:8px 0;font-size:13px;font-weight:600;color:#0F172A">${hrName}</td>
+          </tr>` : ''}
+        </table>
+      </div>
 
-        <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:12px 16px;margin-bottom:24px">
-          <p style="color:#1D4ED8;font-size:13px;margin:0">
-            You are now part of an isolated project team. Your work is scoped exclusively to this project until it is completed or you are reassigned.
-          </p>
-        </div>
-
-        <a href="${loginUrl}/login" style="display:inline-block;background:#2563EB;color:#fff;text-decoration:none;padding:10px 24px;border-radius:8px;font-size:14px;font-weight:600">
-          Go to Dashboard
-        </a>
-
-        <p style="color:#94A3B8;font-size:12px;margin:24px 0 0;text-align:center">
-          This is an automated message from OWMS. Please do not reply to this email.
+      <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:8px;padding:12px 16px;margin-bottom:24px">
+        <p style="color:#1D4ED8;font-size:13px;margin:0">
+          You are now part of an isolated project team. Your work is scoped exclusively to this project until it is completed or you are reassigned.
         </p>
       </div>
-    `,
+
+      <a href="${loginUrl}/login" style="display:inline-block;background:#2563EB;color:#fff;text-decoration:none;padding:10px 24px;border-radius:8px;font-size:14px;font-weight:600">
+        Go to Dashboard
+      </a>
+
+      <p style="color:#94A3B8;font-size:12px;margin:24px 0 0;text-align:center">
+        This is an automated message from OWMS. Please do not reply to this email.
+      </p>
+    </div>
+  `;
+
+  if (process.env.RESEND_API_KEY) {
+    try {
+      await sendViaResendApi({ to, subject: `You've been assigned to project ${projectName}`, html: assignmentHtml });
+      return;
+    } catch (e) {
+      console.warn('Project assignment email via Resend failed, trying SMTP:', e.message);
+    }
+  }
+
+  const { transporter, from, replyTo } = await mailerFor('alerts');
+  await transporter.sendMail({
+    from, replyTo, to,
+    subject: `You've been assigned to project ${projectName}`,
+    html: assignmentHtml,
   });
 };
 
 export const sendPasswordResetEmail = async ({ to, name, resetUrl }) => {
-  const { transporter, from, replyTo } = await mailerFor('support');
-  await transporter.sendMail({
-    from,
-    replyTo,
-    to,
-    subject: 'Reset your OWMS password',
-    html: `
-      <div style="font-family:sans-serif;max-width:520px;margin:auto;padding:32px;background:#fff;border:1px solid #E2E8F0;border-radius:12px">
-        <div style="background:#2563EB;border-radius:8px;padding:20px 24px;margin-bottom:28px">
-          <h1 style="color:#fff;margin:0;font-size:20px;font-weight:700;letter-spacing:-0.3px">OWMS</h1>
-          <p style="color:#93C5FD;margin:4px 0 0;font-size:13px">Office Workspace Management System</p>
-        </div>
+  const resetHtml = `
+    <div style="font-family:sans-serif;max-width:520px;margin:auto;padding:32px;background:#fff;border:1px solid #E2E8F0;border-radius:12px">
+      <div style="background:#2563EB;border-radius:8px;padding:20px 24px;margin-bottom:28px">
+        <h1 style="color:#fff;margin:0;font-size:20px;font-weight:700;letter-spacing:-0.3px">OWMS</h1>
+        <p style="color:#93C5FD;margin:4px 0 0;font-size:13px">Office Workspace Management System</p>
+      </div>
 
-        <h2 style="color:#0F172A;font-size:18px;font-weight:600;margin:0 0 8px">Reset your password</h2>
-        <p style="color:#64748B;font-size:14px;margin:0 0 24px;line-height:1.6">
-          Hi ${name}, we received a request to reset the password for your account.
-          Click the button below to choose a new password. This link is valid for <strong>1 hour</strong>.
-        </p>
+      <h2 style="color:#0F172A;font-size:18px;font-weight:600;margin:0 0 8px">Reset your password</h2>
+      <p style="color:#64748B;font-size:14px;margin:0 0 24px;line-height:1.6">
+        Hi ${name}, we received a request to reset the password for your account.
+        Click the button below to choose a new password. This link is valid for <strong>1 hour</strong>.
+      </p>
 
-        <a href="${resetUrl}" style="display:inline-block;background:#2563EB;color:#fff;text-decoration:none;padding:11px 28px;border-radius:8px;font-size:14px;font-weight:600;margin-bottom:24px">
-          Reset Password
-        </a>
+      <a href="${resetUrl}" style="display:inline-block;background:#2563EB;color:#fff;text-decoration:none;padding:11px 28px;border-radius:8px;font-size:14px;font-weight:600;margin-bottom:24px">
+        Reset Password
+      </a>
 
-        <p style="color:#64748B;font-size:13px;margin:24px 0 8px;line-height:1.6">
-          If the button doesn't work, copy and paste this link into your browser:
-        </p>
-        <p style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:6px;padding:10px 12px;font-size:12px;color:#2563EB;word-break:break-all;margin:0 0 24px">
-          ${resetUrl}
-        </p>
+      <p style="color:#64748B;font-size:13px;margin:24px 0 8px;line-height:1.6">
+        If the button doesn't work, copy and paste this link into your browser:
+      </p>
+      <p style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:6px;padding:10px 12px;font-size:12px;color:#2563EB;word-break:break-all;margin:0 0 24px">
+        ${resetUrl}
+      </p>
 
-        <div style="background:#FEF3C7;border:1px solid #F59E0B;border-radius:8px;padding:12px 16px;margin-bottom:24px">
-          <p style="color:#92400E;font-size:13px;margin:0">
-            <strong>Didn't request this?</strong> You can safely ignore this email — your password will not change.
-          </p>
-        </div>
-
-        <p style="color:#94A3B8;font-size:12px;margin:0;text-align:center">
-          Need help? Reply to this email to reach the OWMS support team.
+      <div style="background:#FEF3C7;border:1px solid #F59E0B;border-radius:8px;padding:12px 16px;margin-bottom:24px">
+        <p style="color:#92400E;font-size:13px;margin:0">
+          <strong>Didn't request this?</strong> You can safely ignore this email — your password will not change.
         </p>
       </div>
-    `,
+
+      <p style="color:#94A3B8;font-size:12px;margin:0;text-align:center">
+        Need help? Reply to this email to reach the OWMS support team.
+      </p>
+    </div>
+  `;
+
+  if (process.env.RESEND_API_KEY) {
+    try {
+      await sendViaResendApi({ to, subject: 'Reset your OWMS password', html: resetHtml });
+      return;
+    } catch (e) {
+      console.warn('Reset email via Resend failed, trying SMTP:', e.message);
+    }
+  }
+
+  const { transporter, from, replyTo } = await mailerFor('support');
+  await transporter.sendMail({
+    from, replyTo, to,
+    subject: 'Reset your OWMS password',
+    html: resetHtml,
   });
 };
 
@@ -430,8 +444,56 @@ const getWelcomeTransporter = async () => {
 export const sendWelcomeEmail = async ({
   toEmail, toName, employeeId,
   tempPassword, role,
-  loginUrl = 'http://localhost:5173/login',
+  loginUrl = 'https://owms-frontend.onrender.com/login',
 }) => {
+  const welcomeHtml = `
+    <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#F8FAFC;padding:32px;">
+      <div style="background:#1E293B;padding:24px;border-radius:12px 12px 0 0;text-align:center;">
+        <h1 style="color:white;margin:0;font-size:24px;">OWMS</h1>
+        <p style="color:#94A3B8;margin:4px 0 0;">Office Workspace Management System</p>
+      </div>
+      <div style="background:white;padding:32px;border-radius:0 0 12px 12px;border:1px solid #E2E8F0;">
+        <h2 style="color:#0F172A;">Welcome, ${toName}!</h2>
+        <p style="color:#64748B;">Your account has been created on OWMS by Movi Cloud Labs. Here are your login credentials:</p>
+        <div style="background:#F1F5F9;padding:20px;border-radius:8px;margin:24px 0;border-left:4px solid #2563EB;">
+          <table style="width:100%;border-collapse:collapse;">
+            <tr>
+              <td style="padding:8px 0;color:#64748B;width:150px;">Employee ID:</td>
+              <td style="padding:8px 0;font-weight:bold;color:#0F172A;font-family:monospace;">${employeeId}</td>
+            </tr>
+            <tr>
+              <td style="padding:8px 0;color:#64748B;">Email:</td>
+              <td style="padding:8px 0;font-weight:bold;color:#0F172A;font-family:monospace;">${toEmail}</td>
+            </tr>
+            <tr>
+              <td style="padding:8px 0;color:#64748B;">Role:</td>
+              <td style="padding:8px 0;font-weight:bold;color:#0F172A;">${role}</td>
+            </tr>
+            <tr>
+              <td style="padding:8px 0;color:#64748B;">Temp Password:</td>
+              <td style="padding:8px 0;font-weight:bold;color:#2563EB;font-family:monospace;font-size:18px;">${tempPassword}</td>
+            </tr>
+          </table>
+        </div>
+        <p style="color:#DC2626;font-size:14px;">⚠ Please change your password immediately after your first login.</p>
+        <a href="${loginUrl}" style="display:inline-block;background:#2563EB;color:white;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;margin-top:16px;">Login to OWMS →</a>
+      </div>
+    </div>
+  `;
+
+  if (process.env.RESEND_API_KEY) {
+    try {
+      await sendViaResendApi({
+        to: toEmail,
+        subject: 'Welcome to OWMS — Your Account is Ready',
+        html: welcomeHtml,
+      });
+      return { sent: true };
+    } catch (e) {
+      console.warn('Welcome email via Resend failed, trying SMTP:', e.message);
+    }
+  }
+
   try {
     const { transporter, settings, error } = await getWelcomeTransporter();
 
@@ -447,40 +509,7 @@ export const sendWelcomeEmail = async ({
       from:    `"${fromName}" <${fromEmail}>`,
       to:      toEmail,
       subject: 'Welcome to OWMS — Your Account is Ready',
-      html: `
-        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;background:#F8FAFC;padding:32px;">
-          <div style="background:#1E293B;padding:24px;border-radius:12px 12px 0 0;text-align:center;">
-            <h1 style="color:white;margin:0;font-size:24px;">OWMS</h1>
-            <p style="color:#94A3B8;margin:4px 0 0;">Office Workspace Management System</p>
-          </div>
-          <div style="background:white;padding:32px;border-radius:0 0 12px 12px;border:1px solid #E2E8F0;">
-            <h2 style="color:#0F172A;">Welcome, ${toName}!</h2>
-            <p style="color:#64748B;">Your account has been created on OWMS by Movi Cloud Labs. Here are your login credentials:</p>
-            <div style="background:#F1F5F9;padding:20px;border-radius:8px;margin:24px 0;border-left:4px solid #2563EB;">
-              <table style="width:100%;border-collapse:collapse;">
-                <tr>
-                  <td style="padding:8px 0;color:#64748B;width:150px;">Employee ID:</td>
-                  <td style="padding:8px 0;font-weight:bold;color:#0F172A;font-family:monospace;">${employeeId}</td>
-                </tr>
-                <tr>
-                  <td style="padding:8px 0;color:#64748B;">Email:</td>
-                  <td style="padding:8px 0;font-weight:bold;color:#0F172A;font-family:monospace;">${toEmail}</td>
-                </tr>
-                <tr>
-                  <td style="padding:8px 0;color:#64748B;">Role:</td>
-                  <td style="padding:8px 0;font-weight:bold;color:#0F172A;">${role}</td>
-                </tr>
-                <tr>
-                  <td style="padding:8px 0;color:#64748B;">Temp Password:</td>
-                  <td style="padding:8px 0;font-weight:bold;color:#2563EB;font-family:monospace;font-size:18px;">${tempPassword}</td>
-                </tr>
-              </table>
-            </div>
-            <p style="color:#DC2626;font-size:14px;">⚠ Please change your password immediately after your first login.</p>
-            <a href="${loginUrl}" style="display:inline-block;background:#2563EB;color:white;padding:12px 32px;border-radius:8px;text-decoration:none;font-weight:bold;margin-top:16px;">Login to OWMS →</a>
-          </div>
-        </div>
-      `,
+      html:    welcomeHtml,
     });
 
     return { sent: true };
